@@ -75,8 +75,15 @@ const Onboarding = () => {
 
     try {
       const response = await authenticate(formData.email, formData.password);
-      login(response.data.user);
-      setCurrentStep(2);
+      const authenticatedUser = response.data.user;
+
+      // Update user's current step to 2 after successful authentication
+      if (authenticatedUser.current_step === 1) {
+        const updateResponse = await updateUserProgress(authenticatedUser.id, { current_step: 2 });
+        login(updateResponse.data.user);
+      } else {
+        login(authenticatedUser);
+      }
     } catch (err) {
       setError(err.response?.data?.error || 'Authentication failed');
     } finally {

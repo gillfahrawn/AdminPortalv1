@@ -1,130 +1,231 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-const dbPath = path.join(__dirname, '../../database.db');
-const db = new Database(dbPath);
+// MongoDB connection
+let isConnected = false;
 
-// Enable foreign keys
-db.pragma('foreign_keys = ON');
-
-// Initialize database schema
-function initializeDatabase() {
-  // Users table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      about_me TEXT,
-      street_address TEXT,
-      city TEXT,
-      state TEXT,
-      zip TEXT,
-      birthdate TEXT,
-      current_step INTEGER DEFAULT 1,
-      completed BOOLEAN DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // Admin configuration table - stores which components appear on which pages
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS admin_config (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      page_number INTEGER NOT NULL,
-      component_type TEXT NOT NULL,
-      display_order INTEGER DEFAULT 0,
-      UNIQUE(page_number, component_type)
-    )
-  `);
-
-  // Initialize default configuration if empty
-  const configCount = db.prepare('SELECT COUNT(*) as count FROM admin_config').get();
-  if (configCount.count === 0) {
-    const insert = db.prepare('INSERT INTO admin_config (page_number, component_type, display_order) VALUES (?, ?, ?)');
-    const insertMany = db.transaction((configs) => {
-      for (const config of configs) insert.run(config.page, config.type, config.order);
-    });
-
-    // Default: Page 2 has About Me and Birthdate, Page 3 has Address
-    insertMany([
-      { page: 2, type: 'about_me', order: 0 },
-      { page: 2, type: 'birthdate', order: 1 },
-      { page: 3, type: 'address', order: 0 }
-    ]);
+async function connectToDatabase() {
+  if (isConnected) {
+    console.log('Using existing database connection');
+    return;
   }
 
-  console.log('Database initialized successfully');
+  try {
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/admin_portal';
+
+    await mongoose.connect(mongoUri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+
+    isConnected = true;
+    console.log('MongoDB connected successfully');
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
+  }
+}
+
+// User Schema
+const userSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: true
+  },
+  about_me: {
+    type: String,
+    default: null
+  },
+  street_address: {
+    type: String,
+    default: null
+  },
+  city: {
+    type: String,
+    default: null
+  },
+  state: {
+    type: String,
+    default: null
+  },
+  zip: {
+    type: String,
+    default: null
+  },
+  birthdate: {
+    type: String,
+    default: null
+  },
+  current_step: {
+    type: Number,
+    default: 1
+  },
+  completed: {
+    type: Boolean,
+    default: false
+  }
+}, {
+  timestamps: true // Automatically adds createdAt and updatedAt
+});
+
+// Admin Config Schema
+const adminConfigSchema = new mongoose.Schema({
+  page_number: {
+    type: Number,
+    required: true
+  },
+  component_type: {
+    type: String,
+    required: true,
+    enum: ['about_me', 'address', 'birthdate']
+  },
+  display_order: {
+    type: Number,
+    default: 0
+  }
+}, {
+  timestamps: true
+});
+
+// Compound unique index for page_number and component_type
+adminConfigSchema.index({ page_number: 1, component_type: 1 }, { unique: true });
+
+// Create models
+const User = mongoose.model('User', userSchema);
+const AdminConfig = mongoose.model('AdminConfig', adminConfigSchema);
+
+// Initialize database with default configuration
+async function initializeDatabase() {
+  try {
+    await connectToDatabase();
+
+    // Check if admin config exists, if not, create default
+    const configCount = await AdminConfig.countDocuments();
+
+    if (configCount === 0) {
+      const defaultConfigs = [
+        { page_number: 2, component_type: 'about_me', display_order: 0 },
+        { page_number: 2, component_type: 'birthdate', display_order: 1 },
+        { page_number: 3, component_type: 'address', display_order: 0 }
+      ];
+
+      await AdminConfig.insertMany(defaultConfigs);
+      console.log('Default admin configuration created');
+    }
+
+    console.log('Database initialized successfully');
+  } catch (error) {
+    console.error('Database initialization error:', error);
+    throw error;
+  }
 }
 
 // User operations
 const userOps = {
-  create: (email, password) => {
+  create: async (email, password) => {
     const hashedPassword = bcrypt.hashSync(password, 10);
-    const stmt = db.prepare('INSERT INTO users (email, password) VALUES (?, ?)');
-    const result = stmt.run(email, hashedPassword);
-    return result.lastInsertRowid;
+    const user = await User.create({
+      email,
+      password: hashedPassword
+    });
+    return user._id;
   },
 
-  findByEmail: (email) => {
-    const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
-    return stmt.get(email);
+  findByEmail: async (email) => {
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) return null;
+
+    // Convert MongoDB document to plain object with id instead of _id
+    const userObj = user.toObject();
+    userObj.id = userObj._id.toString();
+    delete userObj._id;
+    delete userObj.__v;
+
+    // Convert timestamps to match SQLite format
+    if (userObj.createdAt) {
+      userObj.created_at = userObj.createdAt;
+      delete userObj.createdAt;
+    }
+    if (userObj.updatedAt) {
+      userObj.updated_at = userObj.updatedAt;
+      delete userObj.updatedAt;
+    }
+
+    return userObj;
   },
 
-  findById: (id) => {
-    const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
-    return stmt.get(id);
+  findById: async (id) => {
+    const user = await User.findById(id);
+    if (!user) return null;
+
+    // Convert to plain object
+    const userObj = user.toObject();
+    userObj.id = userObj._id.toString();
+    delete userObj._id;
+    delete userObj.__v;
+
+    // Convert timestamps
+    if (userObj.createdAt) {
+      userObj.created_at = userObj.createdAt;
+      delete userObj.createdAt;
+    }
+    if (userObj.updatedAt) {
+      userObj.updated_at = userObj.updatedAt;
+      delete userObj.updatedAt;
+    }
+
+    return userObj;
   },
 
-  updateProgress: (userId, data) => {
-    const fields = [];
-    const values = [];
+  updateProgress: async (userId, data) => {
+    const updateData = {};
 
-    if (data.about_me !== undefined) {
-      fields.push('about_me = ?');
-      values.push(data.about_me);
-    }
-    if (data.street_address !== undefined) {
-      fields.push('street_address = ?');
-      values.push(data.street_address);
-    }
-    if (data.city !== undefined) {
-      fields.push('city = ?');
-      values.push(data.city);
-    }
-    if (data.state !== undefined) {
-      fields.push('state = ?');
-      values.push(data.state);
-    }
-    if (data.zip !== undefined) {
-      fields.push('zip = ?');
-      values.push(data.zip);
-    }
-    if (data.birthdate !== undefined) {
-      fields.push('birthdate = ?');
-      values.push(data.birthdate);
-    }
-    if (data.current_step !== undefined) {
-      fields.push('current_step = ?');
-      values.push(data.current_step);
-    }
-    if (data.completed !== undefined) {
-      fields.push('completed = ?');
-      values.push(data.completed ? 1 : 0);
-    }
+    if (data.about_me !== undefined) updateData.about_me = data.about_me;
+    if (data.street_address !== undefined) updateData.street_address = data.street_address;
+    if (data.city !== undefined) updateData.city = data.city;
+    if (data.state !== undefined) updateData.state = data.state;
+    if (data.zip !== undefined) updateData.zip = data.zip;
+    if (data.birthdate !== undefined) updateData.birthdate = data.birthdate;
+    if (data.current_step !== undefined) updateData.current_step = data.current_step;
+    if (data.completed !== undefined) updateData.completed = data.completed;
 
-    fields.push('updated_at = CURRENT_TIMESTAMP');
-    values.push(userId);
+    const user = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true } // Return updated document
+    );
 
-    const stmt = db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`);
-    return stmt.run(...values);
+    return user;
   },
 
-  getAll: () => {
-    const stmt = db.prepare('SELECT * FROM users ORDER BY created_at DESC');
-    return stmt.all();
+  getAll: async () => {
+    const users = await User.find().sort({ createdAt: -1 });
+
+    // Convert all users to plain objects with correct field names
+    return users.map(user => {
+      const userObj = user.toObject();
+      userObj.id = userObj._id.toString();
+      delete userObj._id;
+      delete userObj.__v;
+
+      if (userObj.createdAt) {
+        userObj.created_at = userObj.createdAt;
+        delete userObj.createdAt;
+      }
+      if (userObj.updatedAt) {
+        userObj.updated_at = userObj.updatedAt;
+        delete userObj.updatedAt;
+      }
+
+      return userObj;
+    });
   },
 
   verifyPassword: (password, hashedPassword) => {
@@ -134,29 +235,38 @@ const userOps = {
 
 // Admin configuration operations
 const configOps = {
-  getConfig: () => {
-    const stmt = db.prepare('SELECT * FROM admin_config ORDER BY page_number, display_order');
-    return stmt.all();
+  getConfig: async () => {
+    const configs = await AdminConfig.find().sort({ page_number: 1, display_order: 1 });
+
+    return configs.map(config => ({
+      id: config._id.toString(),
+      page_number: config.page_number,
+      component_type: config.component_type,
+      display_order: config.display_order
+    }));
   },
 
-  updateConfig: (configs) => {
-    const deleteStmt = db.prepare('DELETE FROM admin_config');
-    const insertStmt = db.prepare('INSERT INTO admin_config (page_number, component_type, display_order) VALUES (?, ?, ?)');
+  updateConfig: async (configs) => {
+    // Use a transaction-like approach
+    // Delete all existing configs
+    await AdminConfig.deleteMany({});
 
-    const transaction = db.transaction(() => {
-      deleteStmt.run();
-      configs.forEach((config, index) => {
-        insertStmt.run(config.page_number, config.component_type, index);
-      });
-    });
+    // Insert new configs
+    const configDocuments = configs.map((config, index) => ({
+      page_number: config.page_number,
+      component_type: config.component_type,
+      display_order: index
+    }));
 
-    transaction();
+    await AdminConfig.insertMany(configDocuments);
   }
 };
 
 module.exports = {
-  db,
+  connectToDatabase,
   initializeDatabase,
   userOps,
-  configOps
+  configOps,
+  User,
+  AdminConfig
 };

@@ -1,7 +1,7 @@
 const { userOps } = require('../models/database');
 
 // Register or login user
-exports.authenticate = (req, res) => {
+exports.authenticate = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -10,7 +10,7 @@ exports.authenticate = (req, res) => {
     }
 
     // Check if user exists
-    let user = userOps.findByEmail(email);
+    let user = await userOps.findByEmail(email);
 
     if (user) {
       // User exists, verify password
@@ -22,14 +22,14 @@ exports.authenticate = (req, res) => {
       return res.json({ user: userWithoutPassword, message: 'Login successful' });
     } else {
       // Create new user
-      const userId = userOps.create(email, password);
-      user = userOps.findById(userId);
+      const userId = await userOps.create(email, password);
+      user = await userOps.findById(userId);
       const { password: _, ...userWithoutPassword } = user;
       return res.status(201).json({ user: userWithoutPassword, message: 'Account created successfully' });
     }
   } catch (error) {
     console.error('Authentication error:', error);
-    if (error.message.includes('UNIQUE constraint failed')) {
+    if (error.code === 11000) { // MongoDB duplicate key error
       return res.status(409).json({ error: 'Email already exists' });
     }
     res.status(500).json({ error: 'Internal server error' });
@@ -37,10 +37,10 @@ exports.authenticate = (req, res) => {
 };
 
 // Get user by ID
-exports.getUser = (req, res) => {
+exports.getUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = userOps.findById(userId);
+    const user = await userOps.findById(userId);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -55,18 +55,18 @@ exports.getUser = (req, res) => {
 };
 
 // Update user progress
-exports.updateProgress = (req, res) => {
+exports.updateProgress = async (req, res) => {
   try {
     const { userId } = req.params;
     const data = req.body;
 
-    const user = userOps.findById(userId);
+    const user = await userOps.findById(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    userOps.updateProgress(userId, data);
-    const updatedUser = userOps.findById(userId);
+    await userOps.updateProgress(userId, data);
+    const updatedUser = await userOps.findById(userId);
     const { password: _, ...userWithoutPassword } = updatedUser;
 
     res.json({ user: userWithoutPassword, message: 'Progress updated successfully' });

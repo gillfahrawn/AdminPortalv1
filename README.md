@@ -38,15 +38,16 @@ A full-stack React application for user onboarding with a customizable admin con
 
 ### Backend
 - **Node.js** with Express
-- **better-sqlite3** for SQLite database
+- **MongoDB** with Mongoose ODM
 - **bcrypt** for password hashing
 - RESTful API architecture
 
 ### Database
-- **SQLite** - Lightweight, file-based database
-- Two main tables:
+- **MongoDB** - NoSQL document database (Atlas or local)
+- Two main collections:
   - `users` - User accounts and onboarding data
-  - `admin_config` - Form component configuration
+  - `adminconfigs` - Form component configuration
+- See [MongoDB Setup Guide](MONGODB_SETUP.md) for detailed configuration instructions
 
 ## Project Structure
 
@@ -93,6 +94,9 @@ AdminPortalv1/
 ### Prerequisites
 - Node.js 18 or higher
 - npm or yarn
+- MongoDB Atlas account (free) OR local MongoDB installation
+  - **Recommended**: MongoDB Atlas (cloud-hosted, free tier available)
+  - See [MongoDB Setup Guide](MONGODB_SETUP.md) for detailed instructions
 
 ### Installation
 
@@ -102,13 +106,29 @@ AdminPortalv1/
    cd AdminPortalv1
    ```
 
-2. **Install Backend Dependencies**
+2. **Set up MongoDB**
+   - Follow the [MongoDB Setup Guide](MONGODB_SETUP.md) to:
+     - Create a free MongoDB Atlas cluster, OR
+     - Install MongoDB locally
+   - Get your connection string
+   - Update `backend/.env` with your `MONGODB_URI`
+
+3. **Install Backend Dependencies**
    ```bash
    cd backend
    npm install
    ```
 
-3. **Install Frontend Dependencies**
+4. **Configure Environment Variables**
+   ```bash
+   # Copy example env file
+   cp .env.example .env
+
+   # Edit .env and add your MongoDB connection string
+   # MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/admin_portal
+   ```
+
+5. **Install Frontend Dependencies**
    ```bash
    cd ../frontend
    npm install
@@ -257,6 +277,13 @@ Then update the frontend's `VITE_API_URL` environment variable to point to the d
 ```env
 PORT=3001
 NODE_ENV=development
+
+# MongoDB Connection String
+# For MongoDB Atlas:
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/admin_portal?retryWrites=true&w=majority
+
+# For Local MongoDB:
+# MONGODB_URI=mongodb://localhost:27017/admin_portal
 ```
 
 ### Frontend (`.env`)
@@ -266,11 +293,19 @@ VITE_API_URL=http://localhost:3001/api
 
 ## Development Notes
 
-- Passwords are hashed using bcrypt before storage
-- SQLite database file (`database.db`) is created automatically
-- User authentication is simplified for MVP (no JWT tokens)
-- Admin panel has no authentication (intentional for demo)
-- Data table has no authentication (intentional for demo)
+- **Database**: MongoDB with Mongoose ODM (migrated from SQLite)
+  - See [MongoDB Setup Guide](MONGODB_SETUP.md) for configuration
+  - Uses MongoDB Atlas (cloud) or local MongoDB
+  - Default admin configuration created automatically on first run
+- **Security**:
+  - Passwords are hashed using bcrypt before storage
+  - User authentication is simplified for MVP (no JWT tokens)
+  - Admin panel has no authentication (intentional for demo)
+  - Data table has no authentication (intentional for demo)
+- **Data Models**:
+  - Users collection with timestamps (createdAt, updatedAt)
+  - Admin config collection for form customization
+  - Automatic ObjectId to ID conversion for frontend compatibility
 
 ## Testing the Application
 
@@ -312,15 +347,26 @@ VITE_API_URL=http://localhost:3001/api
 **Backend won't start:**
 - Check if port 3001 is already in use
 - Ensure all dependencies are installed: `npm install`
+- **MongoDB connection issues**: See [MongoDB Setup Guide](MONGODB_SETUP.md) troubleshooting section
 
 **Frontend API calls fail:**
 - Verify backend is running on port 3001
 - Check browser console for CORS errors
 - Ensure `VITE_API_URL` is set correctly
 
-**Database errors:**
-- Delete `backend/database.db` to reset database
-- Restart backend to recreate with default config
+**MongoDB connection errors:**
+- **"MongooseServerSelectionError"**: Cannot connect to MongoDB
+  - Verify `MONGODB_URI` in `.env` is correct
+  - For Atlas: Check IP whitelist (allow 0.0.0.0/0 for testing)
+  - For local: Ensure MongoDB is running (`brew services list` or `systemctl status mongodb`)
+- **"Authentication failed"**: Wrong credentials
+  - Double-check username and password in connection string
+  - URL-encode special characters in password (@ becomes %40, # becomes %23)
+- **"Timeout" errors**: Network or firewall issues
+  - Check network connectivity
+  - Verify Atlas cluster is not paused (free tier auto-pauses after inactivity)
+
+**See detailed MongoDB troubleshooting in [MONGODB_SETUP.md](MONGODB_SETUP.md)**
 
 ## Future Enhancements
 

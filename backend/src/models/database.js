@@ -12,11 +12,7 @@ async function connectToDatabase() {
 
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/admin_portal';
-
-    await mongoose.connect(mongoUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(process.env.MONGODB_URI);
 
     isConnected = true;
     console.log('MongoDB connected successfully');

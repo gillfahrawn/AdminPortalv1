@@ -78,20 +78,36 @@ const Data = () => {
               Auto-refreshes every 5 seconds
             </p>
           </div>
-          <button
-            onClick={() => navigate('/')}
-            style={{
-              padding: '10px 20px',
-              fontSize: '14px',
-              backgroundColor: '#757575',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Back to Home
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => navigate('/admin')}
+              style={{
+                padding: '10px 20px',
+                fontSize: '14px',
+                backgroundColor: '#2196F3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Admin Config
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              style={{
+                padding: '10px 20px',
+                fontSize: '14px',
+                backgroundColor: '#757575',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Back to Home
+            </button>
+          </div>
         </div>
 
         {error && (

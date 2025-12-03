@@ -156,20 +156,36 @@ const Admin = () => {
           marginBottom: '30px'
         }}>
           <h1 style={{ margin: 0 }}>Admin Configuration</h1>
-          <button
-            onClick={() => navigate('/')}
-            style={{
-              padding: '10px 20px',
-              fontSize: '14px',
-              backgroundColor: '#757575',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Back to Home
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => navigate('/data')}
+              style={{
+                padding: '10px 20px',
+                fontSize: '14px',
+                backgroundColor: '#2196F3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              View Data
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              style={{
+                padding: '10px 20px',
+                fontSize: '14px',
+                backgroundColor: '#757575',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Back to Home
+            </button>
+          </div>
         </div>
 
         <p style={{ marginBottom: '30px', color: '#666' }}>

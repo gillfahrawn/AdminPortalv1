@@ -138,6 +138,30 @@ Frontend runs on `http://localhost:5173` (or the port Vite assigns)
 - **Admin Panel**: `http://localhost:5173/admin`
 - **Data Table**: `http://localhost:5173/data`
 
+## Navigation
+
+The application includes easy navigation between all major sections:
+
+### From the Data Table (`/data`):
+- **Admin Config** button - Navigate to the Admin Configuration panel
+- **Back to Home** button - Return to the main onboarding page
+
+### From the Admin Panel (`/admin`):
+- **View Data** button - Navigate to the Data Table
+- **Back to Home** button - Return to the main onboarding page
+
+### From the Success Page (after completing onboarding):
+- **View All Data** button - Navigate to the Data Table to see all submissions
+- **Admin Config** button - Navigate to the Admin panel to modify form configuration
+- **Logout** button - Log out and return to the login page
+
+### Direct URL Access:
+You can also directly access any page by typing the URL:
+- `/` - Main onboarding page
+- `/admin` - Admin configuration panel
+- `/data` - Data table view
+- `/success` - Success page (shown after completing onboarding)
+
 ## API Endpoints
 
 ### Authentication
@@ -262,16 +286,26 @@ VITE_API_URL=http://localhost:3001/api
    - Log in again - should resume at page 3
 
 3. **Test Admin Panel**:
-   - Go to `http://localhost:5173/admin`
-   - Move components between pages
-   - Save configuration
-   - Start new onboarding to see changes
+   - Go to `http://localhost:5173/admin` (or click "Admin Config" from the Data Table)
+   - View current configuration showing components on pages 2 and 3
+   - Move components between pages using "Move to Page X" buttons
+   - Save configuration and verify success message
+   - Use "View Data" button to check the data table
+   - Start new onboarding to see changes reflected in the form
 
 4. **Test Data Table**:
-   - Go to `http://localhost:5173/data`
-   - Verify user data appears
+   - Go to `http://localhost:5173/data` (or click "View All Data" from Success page)
+   - Verify user data appears in the table
+   - Click "Admin Config" button to navigate to admin panel
    - Complete another onboarding
-   - Refresh to see new data (or wait 5 seconds)
+   - Return to data table - it will auto-refresh to show new data (or wait 5 seconds)
+
+5. **Test Navigation**:
+   - Complete an onboarding flow and reach the success page
+   - Click "View All Data" to see the data table
+   - Click "Admin Config" to modify form configuration
+   - Verify "Back to Home" button works from both pages
+   - Test direct URL access to `/admin`, `/data`, and `/`
 
 ## Troubleshooting
 

@@ -50,7 +50,7 @@ const Success = () => {
           Thank you for completing your profile, {user?.email}!
         </p>
 
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
             onClick={() => navigate('/data')}
             style={{
@@ -65,6 +65,22 @@ const Success = () => {
             }}
           >
             View All Data
+          </button>
+
+          <button
+            onClick={() => navigate('/admin')}
+            style={{
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              backgroundColor: '#FF9800',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Admin Config
           </button>
 
           <button

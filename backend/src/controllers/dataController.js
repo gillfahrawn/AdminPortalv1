@@ -1,9 +1,9 @@
 const { userOps } = require('../models/database');
 
 // Get all users
-exports.getAllUsers = (req, res) => {
+exports.getAllUsers = async (req, res) => {
   try {
-    const users = userOps.getAll();
+    const users = await userOps.getAll();
 
     // Remove passwords from response
     const usersWithoutPasswords = users.map(user => {

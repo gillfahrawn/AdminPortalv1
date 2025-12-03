@@ -1,9 +1,9 @@
 const { configOps } = require('../models/database');
 
 // Get current configuration
-exports.getConfig = (req, res) => {
+exports.getConfig = async (req, res) => {
   try {
-    const config = configOps.getConfig();
+    const config = await configOps.getConfig();
 
     // Transform to grouped format
     const groupedConfig = {
@@ -27,7 +27,7 @@ exports.getConfig = (req, res) => {
 };
 
 // Update configuration
-exports.updateConfig = (req, res) => {
+exports.updateConfig = async (req, res) => {
   try {
     const { page2, page3 } = req.body;
 
@@ -73,7 +73,7 @@ exports.updateConfig = (req, res) => {
       configs.push({ page_number: 3, component_type: type, display_order: index });
     });
 
-    configOps.updateConfig(configs);
+    await configOps.updateConfig(configs);
 
     res.json({ message: 'Configuration updated successfully' });
   } catch (error) {

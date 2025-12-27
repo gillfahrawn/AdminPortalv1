@@ -1,12 +1,54 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllUsers } from '../services/api';
+import UserAuditModal from '../components/UserAuditModal';
+
+// Simple audit logic to detect violations (matching the modal's logic)
+function hasViolations(conversationHistory) {
+  if (!conversationHistory || conversationHistory.length === 0) return false;
+
+  const user = conversationHistory.findLast((m) => m.role === 'user');
+  const bot = conversationHistory.findLast((m) => m.role === 'bot');
+
+  if (!user || !bot) return false;
+
+  const userText = user.text.toLowerCase();
+  const botText = bot.text.toLowerCase();
+
+  // Check for violation patterns
+  const violationPatterns = [
+    // Refund past window
+    { userIncludes: ['refund', 'return'], daysSinceOver: 30 },
+    // Promising outside policy
+    { botIncludes: ['processed a full refund', "absolutely! i've processed"] },
+    // Sensitive data
+    { botIncludes: ['full card number', 'security number', 'password'] },
+  ];
+
+  for (const pattern of violationPatterns) {
+    if (pattern.userIncludes && pattern.userIncludes.some(kw => userText.includes(kw))) {
+      // Check if days mentioned
+      const daysMatch = user.text.match(/(\d{1,3})\s*day/gi);
+      if (daysMatch) {
+        const days = parseInt(daysMatch[0].match(/\d{1,3}/)[0], 10);
+        if (days > 30) return true;
+      }
+    }
+
+    if (pattern.botIncludes && pattern.botIncludes.some(kw => botText.includes(kw))) {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 const Data = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
     loadUsers();
@@ -38,6 +80,14 @@ const Data = () => {
     return value ? 'Yes' : 'No';
   };
 
+  const handleReviewAudit = (user) => {
+    setSelectedUser(user);
+  };
+
+  const closeModal = () => {
+    setSelectedUser(null);
+  };
+
   if (loading) {
     return (
       <div style={{
@@ -59,7 +109,7 @@ const Data = () => {
       padding: '20px'
     }}>
       <div style={{
-        maxWidth: '1400px',
+        maxWidth: '1600px',
         margin: '0 auto',
         backgroundColor: 'white',
         padding: '40px',
@@ -143,45 +193,101 @@ const Data = () => {
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>ID</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Email</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>About Me</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Street Address</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>City</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>State</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>ZIP</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Birthdate</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Step</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Completed</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Created</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Audit Status</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '12px' }}>{user.id}</td>
-                    <td style={{ padding: '12px', fontWeight: '500' }}>{user.email}</td>
-                    <td style={{ padding: '12px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {user.about_me || '-'}
-                    </td>
-                    <td style={{ padding: '12px' }}>{user.street_address || '-'}</td>
-                    <td style={{ padding: '12px' }}>{user.city || '-'}</td>
-                    <td style={{ padding: '12px' }}>{user.state || '-'}</td>
-                    <td style={{ padding: '12px' }}>{user.zip || '-'}</td>
-                    <td style={{ padding: '12px' }}>{user.birthdate || '-'}</td>
-                    <td style={{ padding: '12px' }}>{user.current_step || 1}</td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        backgroundColor: user.completed ? '#e8f5e9' : '#fff3e0',
-                        color: user.completed ? '#2e7d32' : '#e65100',
-                        fontSize: '12px',
-                        fontWeight: '500'
-                      }}>
-                        {formatBoolean(user.completed)}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px' }}>{formatDate(user.created_at)}</td>
-                  </tr>
-                ))}
+                {users.map((user) => {
+                  const hasConversation = user.conversationHistory && user.conversationHistory.length > 0;
+                  const hasFlags = hasViolations(user.conversationHistory);
+
+                  return (
+                    <tr key={user.id} style={{ borderBottom: '1px solid #eee' }}>
+                      <td style={{ padding: '12px', fontSize: '12px', color: '#666' }}>{user.id.substring(0, 8)}...</td>
+                      <td style={{ padding: '12px', fontWeight: '500' }}>{user.email}</td>
+                      <td style={{ padding: '12px', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {user.about_me || '-'}
+                      </td>
+                      <td style={{ padding: '12px' }}>{user.city || '-'}</td>
+                      <td style={{ padding: '12px' }}>{user.state || '-'}</td>
+                      <td style={{ padding: '12px' }}>{user.current_step || 1}</td>
+                      <td style={{ padding: '12px' }}>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          backgroundColor: user.completed ? '#e8f5e9' : '#fff3e0',
+                          color: user.completed ? '#2e7d32' : '#e65100',
+                          fontSize: '12px',
+                          fontWeight: '500'
+                        }}>
+                          {formatBoolean(user.completed)}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {!hasConversation ? (
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: '#f5f5f5',
+                            color: '#666',
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}>
+                            No Chat
+                          </span>
+                        ) : hasFlags ? (
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: '#ffebee',
+                            color: '#c62828',
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}>
+                            🔴 Violations
+                          </span>
+                        ) : (
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: '#e8f5e9',
+                            color: '#2e7d32',
+                            fontSize: '12px',
+                            fontWeight: '500'
+                          }}>
+                            ✅ Clean
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {hasConversation ? (
+                          <button
+                            onClick={() => handleReviewAudit(user)}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '13px',
+                              backgroundColor: hasFlags ? '#ff9800' : '#2196F3',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontWeight: '500'
+                            }}
+                          >
+                            Review Audit
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: '#999' }}>-</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -196,8 +302,25 @@ const Data = () => {
           color: '#1565c0'
         }}>
           <strong>Total Users:</strong> {users.length}
+          {users.filter(u => u.conversationHistory && u.conversationHistory.length > 0).length > 0 && (
+            <>
+              {' | '}
+              <strong>With Conversations:</strong> {users.filter(u => u.conversationHistory && u.conversationHistory.length > 0).length}
+              {' | '}
+              <strong>Flagged:</strong> {users.filter(u => hasViolations(u.conversationHistory)).length}
+            </>
+          )}
         </div>
       </div>
+
+      {/* Render Modal */}
+      {selectedUser && selectedUser.conversationHistory && (
+        <UserAuditModal
+          conversation={selectedUser.conversationHistory}
+          userName={selectedUser.email}
+          onClose={closeModal}
+        />
+      )}
     </div>
   );
 };

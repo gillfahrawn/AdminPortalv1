@@ -13,10 +13,7 @@ async function connectToDatabase() {
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/admin_portal';
 
-    await mongoose.connect(mongoUri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(mongoUri);
 
     isConnected = true;
     console.log('MongoDB connected successfully');
@@ -70,6 +67,18 @@ const userSchema = new mongoose.Schema({
   completed: {
     type: Boolean,
     default: false
+  },
+  conversationHistory: {
+    type: [{
+      id: String,
+      role: { type: String, enum: ['user', 'bot', 'auditor'] },
+      text: String,
+      meta: {
+        originalBotText: String,
+        decision: mongoose.Schema.Types.Mixed
+      }
+    }],
+    default: []
   }
 }, {
   timestamps: true // Automatically adds createdAt and updatedAt

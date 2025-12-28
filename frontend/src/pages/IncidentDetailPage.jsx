@@ -170,7 +170,7 @@ const Card = ({ children, className = "" }) => (
 
 function ConfidenceMeter({ value }) {
   const pct = Math.round(value * 100);
-  const ring = 282.743;
+  const ring = 282.743; // 2 * PI * 45 for a 90 radius circle in SVG (approx)
   const dash = (pct / 100) * ring;
   return (
     <div className="flex flex-col items-center gap-2">
@@ -255,21 +255,26 @@ export default function IncidentDetailPage() {
     return audit(conversation, parsedSchema);
   }, [conversation, parsedSchema]);
 
+  // Controls for applying auditor suggestion
   const applySuggestion = () => {
     if (!decision.suggestedReply) return;
+
+    // Find the last bot message index
+    const lastBotIndex = conversation.map((m, i) => m.role === 'bot' ? i : -1).filter(i => i !== -1).pop();
+
     const newMsgs = [
-      ...conversation.slice(0, 2),
+      ...conversation.slice(0, lastBotIndex + 1),
       {
-        id: "m2a",
+        id: `auditor-${Date.now()}`,
         role: "auditor",
         text: "AI Auditor interjected and modified the bot response.",
         meta: { decision },
       },
       {
-        id: "m3",
+        id: `bot-modified-${Date.now()}`,
         role: "bot",
         text: decision.suggestedReply,
-        meta: { originalBotText: conversation[1]?.text, decision },
+        meta: { originalBotText: conversation[lastBotIndex]?.text, decision },
       },
     ];
     setConversation(newMsgs);
@@ -277,9 +282,9 @@ export default function IncidentDetailPage() {
 
   const allowOriginal = () => {
     const newMsgs = [
-      ...conversation.slice(0, 2),
+      ...conversation,
       {
-        id: "m2b",
+        id: `auditor-override-${Date.now()}`,
         role: "auditor",
         text: "AI Auditor was overridden by user. Original bot response sent.",
         meta: { decision },
@@ -290,9 +295,9 @@ export default function IncidentDetailPage() {
 
   const requestHuman = () => {
     const newMsgs = [
-      ...conversation.slice(0, 2),
+      ...conversation,
       {
-        id: "m2c",
+        id: `auditor-human-${Date.now()}`,
         role: "auditor",
         text: "AI Auditor stopped the bot and requested human interjection.",
         meta: { decision },
@@ -307,6 +312,7 @@ export default function IncidentDetailPage() {
     navigate(`/audit/${userId}`);
   };
 
+  // Renderers
   const renderMessage = (m) => {
     const isUser = m.role === "user";
     const isBot = m.role === "bot";
@@ -368,6 +374,9 @@ export default function IncidentDetailPage() {
     );
   }
 
+  // CRITICAL FIX: Check if there are no auditor messages yet (violation not addressed) AND violations exist
+  const hasUnresolvedViolations = !conversation.some(m => m.role === 'auditor') && decision.outcome !== 'allow';
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 p-6">
       <header className="mb-6 flex items-center justify-between">
@@ -405,8 +414,8 @@ export default function IncidentDetailPage() {
               <div className="flex flex-col gap-5">
                 {conversation.map(renderMessage)}
 
-                {/* Interjection controls shown only before applying */}
-                {conversation.length === 2 && decision.outcome !== 'allow' && (
+                {/* CRITICAL FIX: Interjection controls shown when violations exist and not yet addressed */}
+                {hasUnresolvedViolations && (
                   <div className="mt-2">
                     <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">
                       <div className="flex items-center justify-between mb-2">

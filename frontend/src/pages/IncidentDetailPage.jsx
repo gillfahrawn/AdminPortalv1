@@ -312,6 +312,11 @@ export default function IncidentDetailPage() {
     navigate(`/audit/${userId}`);
   };
 
+  // RELAXED LOGIC: Always show yellow box when violations detected, regardless of resolution status
+  const hasViolations = decision.outcome !== 'allow';
+  const hasAuditorResponse = conversation.some(m => m.role === 'auditor');
+  const isResolved = hasAuditorResponse;
+
   // Renderers
   const renderMessage = (m) => {
     const isUser = m.role === "user";
@@ -374,9 +379,6 @@ export default function IncidentDetailPage() {
     );
   }
 
-  // CRITICAL FIX: Check if there are no auditor messages yet (violation not addressed) AND violations exist
-  const hasUnresolvedViolations = !conversation.some(m => m.role === 'auditor') && decision.outcome !== 'allow';
-
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 p-6">
       <header className="mb-6 flex items-center justify-between">
@@ -414,15 +416,21 @@ export default function IncidentDetailPage() {
               <div className="flex flex-col gap-5">
                 {conversation.map(renderMessage)}
 
-                {/* CRITICAL FIX: Interjection controls shown when violations exist and not yet addressed */}
-                {hasUnresolvedViolations && (
+                {/* RELAXED LOGIC: Always show yellow box when violations exist, with status indicator */}
+                {hasViolations && (
                   <div className="mt-2">
                     <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">
                       <div className="flex items-center justify-between mb-2">
                         <div className="font-semibold">AI Auditor interjection point</div>
-                        <Badge tone="amber">action required</Badge>
+                        <Badge tone={isResolved ? "gray" : "amber"}>
+                          {isResolved ? "resolved" : "action required"}
+                        </Badge>
                       </div>
-                      <p className="text-sm text-gray-800 mb-3">The auditor prevented the bot from sending its last reply because it likely violates your schema.</p>
+                      <p className="text-sm text-gray-800 mb-3">
+                        {isResolved
+                          ? "This violation was previously addressed by an auditor. Review the decision below."
+                          : "The auditor prevented the bot from sending its last reply because it likely violates your schema."}
+                      </p>
                       <div className="grid grid-cols-12 gap-4">
                         <div className="col-span-8">
                           <div className="text-sm text-gray-600 mb-1">Suggested compliant reply</div>
@@ -440,9 +448,27 @@ export default function IncidentDetailPage() {
                         </div>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <button onClick={applySuggestion} className="px-3 py-2 rounded-xl bg-black text-white text-sm">Approve & Send modified</button>
-                        <button onClick={requestHuman} className="px-3 py-2 rounded-xl border border-gray-300 bg-white text-sm">Stop & Request human</button>
-                        <button onClick={allowOriginal} className="px-3 py-2 rounded-xl border border-gray-300 bg-white text-sm">Override & Send original</button>
+                        <button
+                          onClick={applySuggestion}
+                          disabled={isResolved}
+                          className={`px-3 py-2 rounded-xl text-sm ${isResolved ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}
+                        >
+                          Approve & Send modified {isResolved && '(Resolved)'}
+                        </button>
+                        <button
+                          onClick={requestHuman}
+                          disabled={isResolved}
+                          className={`px-3 py-2 rounded-xl border text-sm ${isResolved ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
+                        >
+                          Stop & Request human {isResolved && '(Resolved)'}
+                        </button>
+                        <button
+                          onClick={allowOriginal}
+                          disabled={isResolved}
+                          className={`px-3 py-2 rounded-xl border text-sm ${isResolved ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
+                        >
+                          Override & Send original {isResolved && '(Resolved)'}
+                        </button>
                       </div>
                     </div>
                   </div>

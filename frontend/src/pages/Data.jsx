@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllUsers } from '../services/api';
-import UserAuditModal from '../components/UserAuditModal';
+import IncidentsTable from '../components/IncidentsTable';
+import IncidentDetailPage from '../components/IncidentDetailPage';
 
 // Simple audit logic to detect violations (matching the modal's logic)
 function hasViolations(conversationHistory) {
@@ -49,6 +50,8 @@ const Data = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedIncident, setSelectedIncident] = useState(null);
+  const [view, setView] = useState(null); // null | 'incidents' | 'detail'
 
   useEffect(() => {
     loadUsers();
@@ -82,10 +85,23 @@ const Data = () => {
 
   const handleReviewAudit = (user) => {
     setSelectedUser(user);
+    setView('incidents');
   };
 
-  const closeModal = () => {
+  const handleIncidentClick = (incident) => {
+    setSelectedIncident(incident);
+    setView('detail');
+  };
+
+  const closeIncidentsTable = () => {
     setSelectedUser(null);
+    setSelectedIncident(null);
+    setView(null);
+  };
+
+  const closeIncidentDetail = () => {
+    setSelectedIncident(null);
+    setView('incidents');
   };
 
   if (loading) {
@@ -313,13 +329,24 @@ const Data = () => {
         </div>
       </div>
 
-      {/* Render Modal */}
-      {selectedUser && selectedUser.conversationHistory && (
-        <UserAuditModal
-          conversation={selectedUser.conversationHistory}
+      {/* Render Incidents Table or Detail View */}
+      {view === 'incidents' && selectedUser && selectedUser.conversationHistory && (
+        <IncidentsTable
           userName={selectedUser.email}
-          onClose={closeModal}
+          conversationHistory={selectedUser.conversationHistory}
+          onIncidentClick={handleIncidentClick}
+          onClose={closeIncidentsTable}
         />
+      )}
+
+      {view === 'detail' && selectedIncident && (
+        <div className="fixed inset-0 bg-gray-50 z-50 overflow-auto">
+          <IncidentDetailPage
+            initialConversation={selectedIncident.messages}
+            userName={selectedUser?.email || 'Unknown User'}
+            onClose={closeIncidentDetail}
+          />
+        </div>
       )}
     </div>
   );

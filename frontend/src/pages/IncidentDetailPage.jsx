@@ -62,6 +62,20 @@ const DEFAULT_SCHEMA = {
   ],
 };
 
+// --- Demo conversation that reliably triggers R-001, R-002, and R-004 (and yields ~85% confidence) ---
+const DEMO_CONVERSATION = [
+  {
+    id: 'demo-user-001',
+    role: 'user',
+    text: 'Hi, I bought the Model X vacuum about 45 days ago. It’s defective. Can I get a full refund? Order #12345 for $299.',
+  },
+  {
+    id: 'demo-bot-001',
+    role: 'bot',
+    text: "Absolutely! I've processed a full refund of $299 to your card ending 4421. You'll see it in 3–5 days. Sorry about that!",
+  },
+];
+
 // --- Simple heuristic extractors for the demo ---
 function detectDaysSinceMention(text) {
   const m = text.match(/(\d{1,3})\s*day/gi);
@@ -204,6 +218,7 @@ function Pill({ label }) {
 export default function IncidentDetailPage() {
   const { userId, incidentId } = useParams();
   const navigate = useNavigate();
+  const isDemoMode = String(import.meta.env.VITE_DEMO_MODE || '').toLowerCase() === 'true';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -223,7 +238,13 @@ export default function IncidentDetailPage() {
       const response = await getUser(userId);
       const user = response.data.user;
       setUserName(user.email);
-      setInitialConversation(user.conversationHistory || []);
+      // In demo mode, always start from a known incident that triggers interjection,
+      // so the Joyride wizard can reliably highlight the interjection UI.
+      if (isDemoMode) {
+        setInitialConversation(DEMO_CONVERSATION);
+      } else {
+        setInitialConversation(user.conversationHistory || []);
+      }
       setError('');
     } catch (err) {
       setError('Failed to load user data');

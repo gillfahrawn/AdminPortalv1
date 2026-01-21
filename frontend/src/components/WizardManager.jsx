@@ -133,7 +133,7 @@ export default function WizardManager({ children }) {
     if (type === EVENTS.STEP_AFTER || type === EVENTS.TARGET_NOT_FOUND) {
       const nextStepIndex = index + (action === ACTIONS.PREV ? -1 : 1);
 
-      // Step 7 -> 8: After clicking Schema tab, need to re-target the JSON textarea
+      // After clicking Schema tab, re-target the JSON textarea (DOM changes)
       if (index === 6 && action === ACTIONS.NEXT) {
         setTimeout(() => {
           setStepIndex(nextStepIndex);
@@ -142,8 +142,8 @@ export default function WizardManager({ children }) {
         return;
       }
 
-      // Step 8 -> 9: Navigate back to incidents page
-      if (index === 7 && action === ACTIONS.NEXT) {
+      // Navigate back to incidents page (Back button step)
+      if (index === 10 && action === ACTIONS.NEXT) {
         const currentPath = location.pathname;
         const userId = currentPath.split('/')[2]; // Extract userId from /audit/:userId/incident/:incidentId
         navigate(`/audit/${userId}`);
@@ -155,8 +155,8 @@ export default function WizardManager({ children }) {
         return;
       }
 
-      // Step 9 -> 10: Navigate back to data table
-      if (index === 8 && action === ACTIONS.NEXT) {
+      // Navigate back to data table (Back to Data Table step)
+      if (index === 11 && action === ACTIONS.NEXT) {
         navigate('/data');
 
         setTimeout(() => {

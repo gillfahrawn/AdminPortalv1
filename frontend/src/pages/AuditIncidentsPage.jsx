@@ -163,6 +163,7 @@ export default function AuditIncidentsPage() {
             </p>
           </div>
           <button
+            data-tour="back-button-incidents"
             onClick={handleBack}
             style={{
               padding: '10px 20px',

@@ -62,6 +62,20 @@ const DEFAULT_SCHEMA = {
   ],
 };
 
+// --- Demo conversation that reliably triggers R-001, R-002, and R-004 (and yields ~85% confidence) ---
+const DEMO_CONVERSATION = [
+  {
+    id: 'demo-user-001',
+    role: 'user',
+    text: 'Hi, I bought the Model X vacuum about 45 days ago. It’s defective. Can I get a full refund? Order #12345 for $299.',
+  },
+  {
+    id: 'demo-bot-001',
+    role: 'bot',
+    text: "Absolutely! I've processed a full refund of $299 to your card ending 4421. You'll see it in 3–5 days. Sorry about that!",
+  },
+];
+
 // --- Simple heuristic extractors for the demo ---
 function detectDaysSinceMention(text) {
   const m = text.match(/(\d{1,3})\s*day/gi);
@@ -204,6 +218,7 @@ function Pill({ label }) {
 export default function IncidentDetailPage() {
   const { userId, incidentId } = useParams();
   const navigate = useNavigate();
+  const isDemoMode = String(import.meta.env.VITE_DEMO_MODE || '').toLowerCase() === 'true';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -223,7 +238,13 @@ export default function IncidentDetailPage() {
       const response = await getUser(userId);
       const user = response.data.user;
       setUserName(user.email);
-      setInitialConversation(user.conversationHistory || []);
+      // In demo mode, always start from a known incident that triggers interjection,
+      // so the Joyride wizard can reliably highlight the interjection UI.
+      if (isDemoMode) {
+        setInitialConversation(DEMO_CONVERSATION);
+      } else {
+        setInitialConversation(user.conversationHistory || []);
+      }
       setError('');
     } catch (err) {
       setError('Failed to load user data');
@@ -389,15 +410,15 @@ export default function IncidentDetailPage() {
         <div className="flex items-center gap-3">
           <Badge tone={outcomeTone[decision.outcome].tone}>{outcomeTone[decision.outcome].label}</Badge>
           <button onClick={resetDemo} className="px-3 py-2 rounded-xl border border-gray-300 hover:bg-white bg-gray-100 text-sm">Reset demo</button>
-          <button onClick={handleBack} className="px-3 py-2 rounded-xl border border-gray-300 hover:bg-white bg-gray-100 text-sm">← Back</button>
+          <button data-tour="back-button" onClick={handleBack} className="px-3 py-2 rounded-xl border border-gray-300 hover:bg-white bg-gray-100 text-sm">← Back</button>
         </div>
       </header>
 
       {/* Tabs */}
       <div className="mb-4 flex gap-2">
-        <button onClick={() => setActiveTab("conversation")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='conversation'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Conversation</button>
-        <button onClick={() => setActiveTab("schema")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='schema'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Schema</button>
-        <button onClick={() => setActiveTab("auditlog")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='auditlog'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Audit Log</button>
+        <button data-tour="conversation-tab" onClick={() => setActiveTab("conversation")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='conversation'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Conversation</button>
+        <button data-tour="schema-tab" onClick={() => setActiveTab("schema")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='schema'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Schema</button>
+        <button data-tour="auditlog-tab" onClick={() => setActiveTab("auditlog")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='auditlog'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Audit Log</button>
       </div>
 
       {activeTab === "conversation" && (
@@ -449,6 +470,7 @@ export default function IncidentDetailPage() {
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <button
+                          data-tour="approve-button"
                           onClick={applySuggestion}
                           disabled={isResolved}
                           className={`px-3 py-2 rounded-xl text-sm ${isResolved ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}
@@ -456,6 +478,7 @@ export default function IncidentDetailPage() {
                           Approve & Send modified {isResolved && '(Resolved)'}
                         </button>
                         <button
+                          data-tour="stop-button"
                           onClick={requestHuman}
                           disabled={isResolved}
                           className={`px-3 py-2 rounded-xl border text-sm ${isResolved ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
@@ -463,6 +486,7 @@ export default function IncidentDetailPage() {
                           Stop & Request human {isResolved && '(Resolved)'}
                         </button>
                         <button
+                          data-tour="override-button"
                           onClick={allowOriginal}
                           disabled={isResolved}
                           className={`px-3 py-2 rounded-xl border text-sm ${isResolved ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
@@ -479,7 +503,7 @@ export default function IncidentDetailPage() {
 
           {/* Right Sidebar */}
           <div className="col-span-3">
-            <Card className="p-4 mb-4">
+            <Card data-tour="decision-card" className="p-4 mb-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="font-semibold">Decision</div>
                 <Badge tone={outcomeTone[decision.outcome].tone}>{outcomeTone[decision.outcome].label}</Badge>
@@ -497,7 +521,7 @@ export default function IncidentDetailPage() {
               </div>
             </Card>
 
-            <Card className="p-4">
+            <Card data-tour="schema-summary" className="p-4">
               <div className="font-semibold mb-2">Schema Summary</div>
               {parsedSchema ? (
                 <div className="text-sm text-gray-700">
@@ -547,6 +571,7 @@ export default function IncidentDetailPage() {
               )}
 
               <textarea
+                data-tour="schema-json"
                 value={schemaText}
                 onChange={(e) => setSchemaText(e.target.value)}
                 className="w-full h-[520px] font-mono text-sm p-3 rounded-xl border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
@@ -570,7 +595,7 @@ export default function IncidentDetailPage() {
       )}
 
       {activeTab === "auditlog" && (
-        <Card className="p-4">
+        <Card data-tour="auditlog-panel" className="p-4">
           <div className="font-semibold mb-2">Audit Log (demo)</div>
           <div className="text-sm text-gray-700">This demo shows one interjection. In a full app, you'd see a chronological list of decisions with diffs, assignee, and resolution status.</div>
         </Card>

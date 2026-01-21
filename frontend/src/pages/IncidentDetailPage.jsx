@@ -389,15 +389,15 @@ export default function IncidentDetailPage() {
         <div className="flex items-center gap-3">
           <Badge tone={outcomeTone[decision.outcome].tone}>{outcomeTone[decision.outcome].label}</Badge>
           <button onClick={resetDemo} className="px-3 py-2 rounded-xl border border-gray-300 hover:bg-white bg-gray-100 text-sm">Reset demo</button>
-          <button onClick={handleBack} className="px-3 py-2 rounded-xl border border-gray-300 hover:bg-white bg-gray-100 text-sm">← Back</button>
+          <button data-tour="back-button" onClick={handleBack} className="px-3 py-2 rounded-xl border border-gray-300 hover:bg-white bg-gray-100 text-sm">← Back</button>
         </div>
       </header>
 
       {/* Tabs */}
       <div className="mb-4 flex gap-2">
-        <button onClick={() => setActiveTab("conversation")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='conversation'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Conversation</button>
-        <button onClick={() => setActiveTab("schema")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='schema'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Schema</button>
-        <button onClick={() => setActiveTab("auditlog")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='auditlog'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Audit Log</button>
+        <button data-tour="conversation-tab" onClick={() => setActiveTab("conversation")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='conversation'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Conversation</button>
+        <button data-tour="schema-tab" onClick={() => setActiveTab("schema")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='schema'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Schema</button>
+        <button data-tour="auditlog-tab" onClick={() => setActiveTab("auditlog")} className={`px-4 py-2 rounded-xl text-sm font-medium border ${activeTab==='auditlog'? 'bg-white border-gray-300 shadow-sm' : 'bg-gray-100 border-gray-200 hover:bg-white'}`}>Audit Log</button>
       </div>
 
       {activeTab === "conversation" && (
@@ -449,6 +449,7 @@ export default function IncidentDetailPage() {
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <button
+                          data-tour="approve-button"
                           onClick={applySuggestion}
                           disabled={isResolved}
                           className={`px-3 py-2 rounded-xl text-sm ${isResolved ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}
@@ -456,6 +457,7 @@ export default function IncidentDetailPage() {
                           Approve & Send modified {isResolved && '(Resolved)'}
                         </button>
                         <button
+                          data-tour="stop-button"
                           onClick={requestHuman}
                           disabled={isResolved}
                           className={`px-3 py-2 rounded-xl border text-sm ${isResolved ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
@@ -463,6 +465,7 @@ export default function IncidentDetailPage() {
                           Stop & Request human {isResolved && '(Resolved)'}
                         </button>
                         <button
+                          data-tour="override-button"
                           onClick={allowOriginal}
                           disabled={isResolved}
                           className={`px-3 py-2 rounded-xl border text-sm ${isResolved ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300 bg-white hover:bg-gray-50'}`}
@@ -479,7 +482,7 @@ export default function IncidentDetailPage() {
 
           {/* Right Sidebar */}
           <div className="col-span-3">
-            <Card className="p-4 mb-4">
+            <Card data-tour="decision-card" className="p-4 mb-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="font-semibold">Decision</div>
                 <Badge tone={outcomeTone[decision.outcome].tone}>{outcomeTone[decision.outcome].label}</Badge>
@@ -497,7 +500,7 @@ export default function IncidentDetailPage() {
               </div>
             </Card>
 
-            <Card className="p-4">
+            <Card data-tour="schema-summary" className="p-4">
               <div className="font-semibold mb-2">Schema Summary</div>
               {parsedSchema ? (
                 <div className="text-sm text-gray-700">
@@ -547,6 +550,7 @@ export default function IncidentDetailPage() {
               )}
 
               <textarea
+                data-tour="schema-json"
                 value={schemaText}
                 onChange={(e) => setSchemaText(e.target.value)}
                 className="w-full h-[520px] font-mono text-sm p-3 rounded-xl border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Joyride, { ACTIONS, EVENTS, STATUS } from 'react-joyride';
+import { getAllUsers } from '../services/api';
 
 /**
  * WizardManager - Intelligent tour system for demo mode
@@ -18,8 +19,9 @@ import Joyride, { ACTIONS, EVENTS, STATUS } from 'react-joyride';
 
 const TOUR_STORAGE_KEY = 'tour_complete';
 
-// Demo incident URL - first user's first incident
-const DEMO_INCIDENT_URL = '/audit/1/incident/incident-001';
+function isTruthyEnvValue(v) {
+  return String(v || '').toLowerCase() === 'true';
+}
 
 export default function WizardManager({ children }) {
   const navigate = useNavigate();
@@ -28,23 +30,93 @@ export default function WizardManager({ children }) {
   const [runTour, setRunTour] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [tourKey, setTourKey] = useState(0); // Force re-render when needed
+  const [demoLandingPath, setDemoLandingPath] = useState(null);
+  const [landingResolved, setLandingResolved] = useState(false);
 
   // Check if demo mode is active
-  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+  // NOTE: This is a Vite app, so use VITE_* vars. We also support a "NEXT_PUBLIC_DEMO_MODE"
+  // naming convention via VITE_NEXT_PUBLIC_DEMO_MODE to match common Next.js wording.
+  const isDemoMode =
+    isTruthyEnvValue(import.meta.env.VITE_DEMO_MODE) ||
+    isTruthyEnvValue(import.meta.env.VITE_NEXT_PUBLIC_DEMO_MODE);
   const isTourComplete = localStorage.getItem(TOUR_STORAGE_KEY) !== null;
+
+  // Debug logging (remove in production if desired)
+  useEffect(() => {
+    console.log('🎯 WizardManager Debug:', {
+      'VITE_DEMO_MODE': import.meta.env.VITE_DEMO_MODE,
+      'VITE_NEXT_PUBLIC_DEMO_MODE': import.meta.env.VITE_NEXT_PUBLIC_DEMO_MODE,
+      'isDemoMode': isDemoMode,
+      'isTourComplete': isTourComplete,
+      'willRunTour': isDemoMode && !isTourComplete
+    });
+  }, [isDemoMode, isTourComplete]);
+
+  // Resolve demo landing destination (pick a real userId from the API)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveLanding() {
+      // If demo mode isn't enabled, don't block app render.
+      if (!isDemoMode || isTourComplete) {
+        if (!cancelled) {
+          setDemoLandingPath(null);
+          setLandingResolved(true);
+        }
+        return;
+      }
+
+      try {
+        const resp = await getAllUsers();
+        const users = resp?.data?.users || [];
+
+        // Prefer a user who actually has conversation history so the incident detail page loads.
+        const preferred =
+          users.find((u) => Array.isArray(u.conversationHistory) && u.conversationHistory.length > 0) ||
+          users[0];
+
+        if (!preferred?.id) {
+          throw new Error('No users returned from API (missing id)');
+        }
+
+        const path = `/audit/${preferred.id}/incident/incident-001`;
+        if (!cancelled) {
+          setDemoLandingPath(path);
+          setLandingResolved(true);
+        }
+      } catch (e) {
+        // If the API is down/unreachable, do NOT force redirect (avoid blank error screens).
+        console.warn('[WizardManager] Failed to resolve demo landing path. Skipping auto-redirect.', e);
+        if (!cancelled) {
+          setDemoLandingPath(null);
+          setLandingResolved(true);
+        }
+      }
+    }
+
+    resolveLanding();
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemoMode, isTourComplete]);
 
   // Initialize tour on mount
   useEffect(() => {
+    if (!landingResolved) return;
+
     if (isDemoMode && !isTourComplete) {
       // Redirect to demo incident page if not already there
-      if (location.pathname === '/' || location.pathname === '/admin' || location.pathname === '/success') {
-        navigate(DEMO_INCIDENT_URL, { replace: true });
+      if (
+        demoLandingPath &&
+        (location.pathname === '/' || location.pathname === '/admin' || location.pathname === '/success')
+      ) {
+        navigate(demoLandingPath, { replace: true });
       }
 
       // Start tour after navigation
       setTimeout(() => setRunTour(true), 500);
     }
-  }, [isDemoMode, isTourComplete]);
+  }, [isDemoMode, isTourComplete, landingResolved, demoLandingPath]);
 
   // Handle tour state changes
   const handleJoyrideCallback = (data) => {
@@ -251,7 +323,47 @@ export default function WizardManager({ children }) {
       placement: 'right',
     },
 
-    // STEP 9: Back to Incidents (Navigation)
+    // STEP 9: Audit Log Tab (Reviewable evidence)
+    {
+      target: '[data-tour="auditlog-tab"]',
+      content: (
+        <div>
+          <h3 className="font-semibold text-lg mb-2">Audit Log</h3>
+          <p className="mb-2">
+            Switch to the <strong>Audit Log</strong> to review how the auditor reached its decision and what changed.
+          </p>
+          <p className="text-sm text-gray-700 mb-2">
+            This is the evidence trail compliance teams rely on for internal reviews and regulatory audits.
+          </p>
+          <p className="text-xs text-amber-700 font-medium">
+            ⚠️ Click the Audit Log tab to continue
+          </p>
+        </div>
+      ),
+      placement: 'bottom',
+      spotlightClicks: true,
+      hideCloseButton: true,
+      disableOverlayClose: true,
+    },
+
+    // STEP 10: Audit Log Panel
+    {
+      target: '[data-tour="auditlog-panel"]',
+      content: (
+        <div>
+          <h3 className="font-semibold text-lg mb-2">Decision Traceability</h3>
+          <p className="mb-2">
+            Every interjection is recorded with context—what rule fired, why it mattered, and how the response was modified.
+          </p>
+          <p className="text-sm text-gray-700">
+            This supports accountability and reduces time-to-resolution when reviewing flagged conversations.
+          </p>
+        </div>
+      ),
+      placement: 'left',
+    },
+
+    // STEP 11: Back to Incidents (Navigation)
     {
       target: '[data-tour="back-button"]',
       content: (
@@ -271,7 +383,7 @@ export default function WizardManager({ children }) {
       disableOverlayClose: true,
     },
 
-    // STEP 10: Back to Data Table (Navigation)
+    // STEP 12: Back to Data Table (Navigation)
     {
       target: '[data-tour="back-button-incidents"]',
       content: (

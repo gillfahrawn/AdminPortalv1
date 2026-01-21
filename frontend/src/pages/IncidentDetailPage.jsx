@@ -574,7 +574,7 @@ export default function IncidentDetailPage() {
       )}
 
       {activeTab === "auditlog" && (
-        <Card className="p-4">
+        <Card data-tour="auditlog-panel" className="p-4">
           <div className="font-semibold mb-2">Audit Log (demo)</div>
           <div className="text-sm text-gray-700">This demo shows one interjection. In a full app, you'd see a chronological list of decisions with diffs, assignee, and resolution status.</div>
         </Card>
